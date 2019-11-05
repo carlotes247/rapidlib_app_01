@@ -5,6 +5,7 @@
 #include "regression.h"
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
+#include "SDL_ttf.h"
 
 #pragma region Vars
 	// Creating vector of training examples
@@ -34,6 +35,9 @@ SDL_Window* mainWindow;
 //Renderer required to paint window
 SDL_Renderer* renderer;
 
+// Font to draw text with
+TTF_Font * font;
+
 #pragma endregion
 
 #pragma region Methods Declaration
@@ -46,7 +50,11 @@ void initAndCreateWindow();
 
 void initRectangle(int height, int width);
 
+void drawTextOnScreen();
+
 void mainUpdateLoop();
+
+void endProgram();
 
 #pragma endregion
 
@@ -68,8 +76,6 @@ int main()
 	mainUpdateLoop();
 	// Once update loop is finished...
 
-	SDL_DestroyWindow(mainWindow);
-	SDL_Quit();
 	return 0;
 
 }
@@ -137,6 +143,7 @@ void trainRegressionModel()
 void initAndCreateWindow()
 {
 	SDL_Init(SDL_INIT_VIDEO);
+	TTF_Init();
 
 	// Create sdl window
 	mainWindow = SDL_CreateWindow
@@ -145,8 +152,11 @@ void initAndCreateWindow()
 		640, 480, // window's length and height in pixels  
 		SDL_WINDOW_OPENGL);
 
+	// Creates renderer
 	renderer = SDL_CreateRenderer(mainWindow, -1, 0);
 
+	// Init font
+	font = TTF_OpenFont("arial.ttf", 25);
 }
 
 void initRectangle(int height, int width)
@@ -155,6 +165,33 @@ void initRectangle(int height, int width)
 	rect.h = height;
 	rect.w = width;
 
+}
+
+void drawTextOnScreen(std::string textToDisplay)
+{	
+	const char *text = textToDisplay.c_str();
+	SDL_Color blackColor = { 0, 0, 0 };  // this is the color in rgb format, maxing out all would give you the color white, and it will be your text's color
+
+	SDL_Surface* surfaceMessage = TTF_RenderText_Solid(font, text, blackColor); // as TTF_RenderText_Solid could only be used on SDL_Surface then you have to create the surface first
+
+	SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage); //now you can convert it into a texture
+
+	SDL_Rect Message_rect; //create a rect
+	Message_rect.x = 0;  //controls the rect's x coordinate 
+	Message_rect.y = 0; // controls the rect's y coordinte
+	Message_rect.w = 100; // controls the width of the rect
+	Message_rect.h = 100; // controls the height of the rect
+
+	//Mind you that (0,0) is on the top left of the window/screen, think a rect as the text's box, that way it would be very simple to understance
+
+	//Now since it's a texture, you have to put RenderCopy in your game loop area, the area where the whole code executes
+
+	SDL_RenderCopy(renderer, Message, NULL, &Message_rect); //you put the renderer's name first, the Message, the crop size(you can ignore this if you don't want to dabble with cropping), and the rect which is the size and coordinate of your texture
+	SDL_RenderPresent(renderer);
+	
+	//Don't forget too free your surface and texture
+	SDL_DestroyTexture(Message);
+	SDL_FreeSurface(surfaceMessage);
 }
 
 void mainUpdateLoop()
@@ -210,9 +247,21 @@ void mainUpdateLoop()
 		std::vector<double> inputVec = { double(newNote) };
 		double freqHz = modelRegression.run(inputVec)[0];
 
-		std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;
+
+		std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
+
+		drawTextOnScreen(std::to_string(freqHz));
 
 	}
+
+}
+
+void endProgram()
+{
+	TTF_CloseFont(font);
+	SDL_DestroyWindow(mainWindow);
+	TTF_Quit();
+	SDL_Quit();
 
 }
 

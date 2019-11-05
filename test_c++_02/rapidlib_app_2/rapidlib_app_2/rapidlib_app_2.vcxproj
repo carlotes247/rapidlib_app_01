@@ -91,14 +91,14 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\SDL\include;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\rapidlib\dependencies\json;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\rapidlib\dependencies;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\rapidlib\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\SDL2_TTF\include;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\SDL\include;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\rapidlib\dependencies\json;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\rapidlib\dependencies;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\rapidlib\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\SDL\lib\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\SDL2_TTF\lib\x86;D:\Carlotes%28User%29\Documents\Unity_Projects\Rapidlib_Nov_2019_test\SDL\lib\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
