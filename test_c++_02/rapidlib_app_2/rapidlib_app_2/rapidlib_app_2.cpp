@@ -165,6 +165,27 @@ void mainUpdateLoop()
 
 		if (SDL_PollEvent(&eventSDL) != 0)
 		{
+			switch (eventSDL.type) {
+				/* Keyboard event */
+				case SDL_KEYDOWN:
+					switch (eventSDL.key.keysym.sym)
+					{
+					case SDLK_ESCAPE:
+						exitCondition = true;
+					default:
+						break;
+					}
+
+
+				/* SDL_QUIT event (window close) */
+				case SDL_QUIT:
+					exitCondition = true;
+					break;
+
+				default:
+					break;
+			}
+
 			// Get mouse event
 			SDL_GetMouseState(&mousePosX, &mousePosY);
 
