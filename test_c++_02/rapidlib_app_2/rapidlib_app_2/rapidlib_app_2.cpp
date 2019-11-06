@@ -50,7 +50,11 @@ void initAndCreateWindow();
 
 void initRectangle(int height, int width);
 
-void drawTextOnScreen();
+void drawTextOnScreen(std::string textToDisplay);
+
+void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs);
+
+void getTextInput();
 
 void mainUpdateLoop();
 
@@ -181,7 +185,7 @@ void drawTextOnScreen(std::string textToDisplay)
 	Message_rect.y = 0; // controls the rect's y coordinte
 	Message_rect.w = 100; // controls the width of the rect
 	Message_rect.h = 100; // controls the height of the rect
-
+	
 	// We make sure that the width and height are not stretched
 	SDL_QueryTexture(Message, NULL, NULL, &Message_rect.w, &Message_rect.h);
 
@@ -195,6 +199,22 @@ void drawTextOnScreen(std::string textToDisplay)
 	//Don't forget too free your surface and texture
 	SDL_DestroyTexture(Message);
 	SDL_FreeSurface(surfaceMessage);
+}
+
+void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs)
+{
+
+}
+
+void getTextInput()
+{
+	//Set text color as black
+	SDL_Color textColor = { 0, 0, 0, 0xFF };
+
+	//The current input text.
+	std::string inputText = "Some Text";
+	
+	//gInputTextTexture.loadFromRenderedText(inputText.c_str(), textColor);
 }
 
 void mainUpdateLoop()
@@ -212,14 +232,15 @@ void mainUpdateLoop()
 					{
 					case SDLK_ESCAPE:
 						exitCondition = true;
+					case SDLK_SPACE:
+						std::cout << "space key pressed! " << std::endl;
 					default:
 						break;
 					}
 
-
 				/* SDL_QUIT event (window close) */
 				case SDL_QUIT:
-					exitCondition = true;
+					//exitCondition = true;
 					break;
 
 				default:
