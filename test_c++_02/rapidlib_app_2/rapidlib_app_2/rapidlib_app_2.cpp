@@ -182,6 +182,9 @@ void drawTextOnScreen(std::string textToDisplay)
 	Message_rect.w = 100; // controls the width of the rect
 	Message_rect.h = 100; // controls the height of the rect
 
+	// We make sure that the width and height are not stretched
+	SDL_QueryTexture(Message, NULL, NULL, &Message_rect.w, &Message_rect.h);
+
 	//Mind you that (0,0) is on the top left of the window/screen, think a rect as the text's box, that way it would be very simple to understance
 
 	//Now since it's a texture, you have to put RenderCopy in your game loop area, the area where the whole code executes
@@ -248,10 +251,12 @@ void mainUpdateLoop()
 		double freqHz = modelRegression.run(inputVec)[0];
 
 
-		std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
+		//std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
 
 		drawTextOnScreen(std::to_string(freqHz));
 
+		// Little delay to not run constantly
+		SDL_Delay(10);
 	}
 
 }
