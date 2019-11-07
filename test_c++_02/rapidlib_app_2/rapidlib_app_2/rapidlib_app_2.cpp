@@ -8,12 +8,15 @@
 #include "SDL_ttf.h"
 
 #pragma region Vars
+/* ML VARS */
 // Creating vector of training examples
 std::vector<trainingExample> examples;
 trainingExample auxExample;
 
 // Creating regression instance
 regression modelRegression;
+
+// Creating a classification instance
 
 // Defining inputs and outputs
 std::vector<double> input = { 48 };
@@ -45,11 +48,20 @@ TTF_Font * font;
 // Vars for keyboard input
 std::string inputText= "";
 
+/* COLLECTION OF TRAINING EXAMPLES*/
+// Value to define the output of the network
+double desiredOutputValue;
+
+// Flag to allow the collection of examples in the main loop
+bool canCollectExamples;
+
 #pragma endregion
 
 #pragma region Methods Declaration
 
 void addTrainingExamples();
+
+void debugTrainingData();
 
 void trainRegressionModel();
 
@@ -61,7 +73,7 @@ void drawTextOnScreen(std::string textToDisplay, int x, int y);
 
 void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs);
 
-void handleTextInput(std::string inputText, int x, int y);
+void handleTextInput(std::string inputText, int x, int y, double* desiredOutput);
 
 void mainUpdateLoop();
 
@@ -124,6 +136,11 @@ void addTrainingExamples() {
 	auxExample.output = output;
 	examples.push_back(auxExample);
 
+
+}
+
+void debugTrainingData()
+{
 	std::cout << "Training data: \n";
 	for (int i = 0; i < examples.size(); i++)
 	{
@@ -210,11 +227,25 @@ void drawTextOnScreen(std::string textToDisplay, int x, int y)
 
 void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs)
 {
+	// Assign inputs to training set
+	auxExample.input = inputs;
+	auxExample.output = outputs;
+	examples.push_back(auxExample);
 
 }
 
-void handleTextInput(std::string inputText, int x, int y)
+void handleTextInput(std::string inputText, int x, int y, double* numberToWrite)
 {	
+	// Only update the desired output number if inputText is not empty and only a number
+	if (inputText != "" && inputText != "." && inputText.find_first_not_of("0123456789.") == std::string::npos)
+	{
+		*numberToWrite = std::stod(inputText);
+	}
+	else
+	{
+		*numberToWrite = 0;
+	}
+
 	//Text is not empty
 	if (inputText != "")
 	{
@@ -228,6 +259,10 @@ void handleTextInput(std::string inputText, int x, int y)
 		drawTextOnScreen(" ", x, y);
 	}
 	
+	
+	
+	//std::cout << numberToWrite << std::endl;
+
 	// I think this function might be from SDL1
 	//gInputTextTexture.loadFromRenderedText(inputText.c_str(), textColor);
 }
@@ -235,11 +270,9 @@ void handleTextInput(std::string inputText, int x, int y)
 void mainUpdateLoop()
 {
 	bool exitCondition = false;
+	canCollectExamples = false;
 	while (!exitCondition)
-	{
-		// The renderer flag for input text
-		bool renderInputText = false;
-		
+	{		
 		// Enable text input
 		SDL_StartTextInput();
 
@@ -250,12 +283,14 @@ void mainUpdateLoop()
 				/* Keyboard event */
 				// Special text input event
 				case SDL_TEXTINPUT:
-					//Not copy or pasting
-					if (!(SDL_GetModState() & KMOD_CTRL && (eventSDL.text.text[0] == 'c' || eventSDL.text.text[0] == 'C' || eventSDL.text.text[0] == 'v' || eventSDL.text.text[0] == 'V')))
+					//Not copy or pasting, nor space char, nor t key (for training)
+					if (!(SDL_GetModState() & KMOD_CTRL 
+						&& (eventSDL.text.text[0] == 'c' || eventSDL.text.text[0] == 'C' || eventSDL.text.text[0] == 'v' || eventSDL.text.text[0] == 'V'))
+						&& eventSDL.text.text[0] != ' '
+						)
 					{
 						//Append character
 						inputText += eventSDL.text.text;
-						renderInputText = true;
 					}
 					break;
 				// KEY DOWN
@@ -268,7 +303,12 @@ void mainUpdateLoop()
 							break;
 						// Space will trigger collecting examples
 						case SDLK_SPACE:
-							std::cout << "space key pressed! " << std::endl;
+							canCollectExamples = !canCollectExamples;
+							std::cout << "Collecting Examples: " << canCollectExamples << std::endl;
+							if (!canCollectExamples)
+							{
+								debugTrainingData();
+							}
 							break;
 						// Backspace will delete input text
 						case SDLK_BACKSPACE:
@@ -276,7 +316,6 @@ void mainUpdateLoop()
 							{
 								//lop off character
 								inputText.pop_back();
-								renderInputText = true;
 							}
 							break;
 						// ctrl + c will content from input text to clipboard
@@ -291,9 +330,18 @@ void mainUpdateLoop()
 							if (SDL_GetModState() & KMOD_CTRL)
 							{
 								inputText = SDL_GetClipboardText();
-								renderInputText = true;
 							} 
-							break;						
+							break;			
+						case SDLK_t:
+							// delete the last introduced character (it is probably a t)
+							if (inputText.length() > 0)
+							{
+								//lop off character
+								inputText.pop_back();
+							}
+							// train model
+							trainRegressionModel();
+							break;
 						default:
 							break;
 					}
@@ -329,19 +377,30 @@ void mainUpdateLoop()
 
 		//Run the trained model on the user input
 		std::vector<double> inputVec = { double(newNote) };
-		double freqHz = modelRegression.run(inputVec)[0];
+		double regressionOutput = modelRegression.run(inputVec)[0];
 
 
 		//std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
 
+		// Draw output label on screen
+		drawTextOnScreen("Regression Out: ", 0, 0);
+
 		// draw network output on top left side of screen
-		drawTextOnScreen(std::to_string(freqHz), 0, 0);
+		drawTextOnScreen(std::to_string(regressionOutput), 180, 0);
 		
 		// Draw output label on screen
-		drawTextOnScreen("Output: ", windowXSize - 190, 0);
+		drawTextOnScreen("Desired Output: ", windowXSize - 250, 0);
 
 		// handle input text box top right side of screen
-		handleTextInput(inputText, windowXSize - 100, 0);
+		handleTextInput(inputText, windowXSize - 100, 0, &desiredOutputValue);
+
+		//std::cout << desiredOutputValue; 
+
+		// Collect examples if requested
+		if (canCollectExamples)
+		{
+			collectTrainingExamples({ mousePosX * 1.0 }, { desiredOutputValue });
+		}
 
 		//Disable text input
 		SDL_StopTextInput();
