@@ -8,7 +8,7 @@
 #include "SDL_ttf.h"
 
 #pragma region Vars
-	// Creating vector of training examples
+// Creating vector of training examples
 std::vector<trainingExample> examples;
 trainingExample auxExample;
 
@@ -22,6 +22,10 @@ std::vector<double> output = { 130.81 };
 // Mouse pos
 int mousePosX;
 int mousePosY;
+
+// Window's app size
+int windowXSize = 640;
+int windowYSize = 480;
 
 // Rectangle to paint
 SDL_Rect rect; // the rectangle
@@ -38,6 +42,9 @@ SDL_Renderer* renderer;
 // Font to draw text with
 TTF_Font * font;
 
+// Vars for keyboard input
+std::string inputText= "";
+
 #pragma endregion
 
 #pragma region Methods Declaration
@@ -50,11 +57,11 @@ void initAndCreateWindow();
 
 void initRectangle(int height, int width);
 
-void drawTextOnScreen(std::string textToDisplay);
+void drawTextOnScreen(std::string textToDisplay, int x, int y);
 
 void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs);
 
-void getTextInput();
+void handleTextInput(std::string inputText, int x, int y);
 
 void mainUpdateLoop();
 
@@ -153,7 +160,7 @@ void initAndCreateWindow()
 	mainWindow = SDL_CreateWindow
 	("Rapidlib test", // window's title
 		10, 25, // coordinates on the screen, in pixels, of the window's upper left corner
-		640, 480, // window's length and height in pixels  
+		windowXSize, windowYSize, // window's length and height in pixels  
 		SDL_WINDOW_OPENGL);
 
 	// Creates renderer
@@ -171,7 +178,7 @@ void initRectangle(int height, int width)
 
 }
 
-void drawTextOnScreen(std::string textToDisplay)
+void drawTextOnScreen(std::string textToDisplay, int x, int y)
 {	
 	const char *text = textToDisplay.c_str();
 	SDL_Color blackColor = { 0, 0, 0 };  // this is the color in rgb format, maxing out all would give you the color white, and it will be your text's color
@@ -181,8 +188,8 @@ void drawTextOnScreen(std::string textToDisplay)
 	SDL_Texture* Message = SDL_CreateTextureFromSurface(renderer, surfaceMessage); //now you can convert it into a texture
 
 	SDL_Rect Message_rect; //create a rect
-	Message_rect.x = 0;  //controls the rect's x coordinate 
-	Message_rect.y = 0; // controls the rect's y coordinte
+	Message_rect.x = x;  //controls the rect's x coordinate 
+	Message_rect.y = y; // controls the rect's y coordinte
 	Message_rect.w = 100; // controls the width of the rect
 	Message_rect.h = 100; // controls the height of the rect
 	
@@ -206,14 +213,22 @@ void collectTrainingExamples(std::vector<double> inputs, std::vector<double> out
 
 }
 
-void getTextInput()
-{
-	//Set text color as black
-	SDL_Color textColor = { 0, 0, 0, 0xFF };
-
-	//The current input text.
-	std::string inputText = "Some Text";
+void handleTextInput(std::string inputText, int x, int y)
+{	
+	//Text is not empty
+	if (inputText != "")
+	{
+		// We draw the input text on the screen top right corner
+		drawTextOnScreen(inputText, x, y);
+	}
+	//Text is empty
+	else
+	{
+		// We draw the input text on the screen top right corner
+		drawTextOnScreen(" ", x, y);
+	}
 	
+	// I think this function might be from SDL1
 	//gInputTextTexture.loadFromRenderedText(inputText.c_str(), textColor);
 }
 
@@ -222,22 +237,67 @@ void mainUpdateLoop()
 	bool exitCondition = false;
 	while (!exitCondition)
 	{
+		// The renderer flag for input text
+		bool renderInputText = false;
+		
+		// Enable text input
+		SDL_StartTextInput();
 
-		if (SDL_PollEvent(&eventSDL) != 0)
+		// Input event pooling
+		while (SDL_PollEvent(&eventSDL) != 0)
 		{
 			switch (eventSDL.type) {
 				/* Keyboard event */
+				// Special text input event
+				case SDL_TEXTINPUT:
+					//Not copy or pasting
+					if (!(SDL_GetModState() & KMOD_CTRL && (eventSDL.text.text[0] == 'c' || eventSDL.text.text[0] == 'C' || eventSDL.text.text[0] == 'v' || eventSDL.text.text[0] == 'V')))
+					{
+						//Append character
+						inputText += eventSDL.text.text;
+						renderInputText = true;
+					}
+					break;
+				// KEY DOWN
 				case SDL_KEYDOWN:
 					switch (eventSDL.key.keysym.sym)
 					{
-					case SDLK_ESCAPE:
-						exitCondition = true;
-					case SDLK_SPACE:
-						std::cout << "space key pressed! " << std::endl;
-					default:
-						break;
+						// esc key closes the app
+						case SDLK_ESCAPE:
+							exitCondition = true;
+							break;
+						// Space will trigger collecting examples
+						case SDLK_SPACE:
+							std::cout << "space key pressed! " << std::endl;
+							break;
+						// Backspace will delete input text
+						case SDLK_BACKSPACE:
+							if (inputText.length() > 0)
+							{
+								//lop off character
+								inputText.pop_back();
+								renderInputText = true;
+							}
+							break;
+						// ctrl + c will content from input text to clipboard
+						case SDLK_c:
+							if (SDL_GetModState() & KMOD_CTRL)
+							{
+								SDL_SetClipboardText(inputText.c_str());
+							}
+							break;
+						// ctrl + v will copy text from clipboard to input text
+						case SDLK_v:
+							if (SDL_GetModState() & KMOD_CTRL)
+							{
+								inputText = SDL_GetClipboardText();
+								renderInputText = true;
+							} 
+							break;						
+						default:
+							break;
 					}
-
+					break;
 				/* SDL_QUIT event (window close) */
 				case SDL_QUIT:
 					//exitCondition = true;
@@ -274,7 +334,17 @@ void mainUpdateLoop()
 
 		//std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
 
-		drawTextOnScreen(std::to_string(freqHz));
+		// draw network output on top left side of screen
+		drawTextOnScreen(std::to_string(freqHz), 0, 0);
+		
+		// Draw output label on screen
+		drawTextOnScreen("Output: ", windowXSize - 190, 0);
+
+		// handle input text box top right side of screen
+		handleTextInput(inputText, windowXSize - 100, 0);
+
+		//Disable text input
+		SDL_StopTextInput();
 
 		// Little delay to not run constantly
 		SDL_Delay(10);
