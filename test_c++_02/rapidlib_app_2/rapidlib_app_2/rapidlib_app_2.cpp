@@ -4,6 +4,7 @@
 #include <iostream>
 #include "regression.h"
 #include "classification.h"
+#include "seriesClassification.h"
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
 #include "SDL_ttf.h"
@@ -13,12 +14,19 @@
 // Creating vector of training examples
 std::vector<trainingExample> examples;
 trainingExample auxExample;
+// Vectors for DTW
+std::vector<std::vector<trainingExample>> examplesSeriesDTW;
+// Will be used to collect one serie at a time for DTW
+std::vector<trainingExample> auxSerieDTW; 
 
 // Creating regression instance
 regression modelRegression;
 
 // Creating a classification instance
 classification modelClassification;
+
+// DTW instance
+seriesClassification modelDTW;
 
 // Defining inputs and outputs
 std::vector<double> input = { 48 };
@@ -72,6 +80,8 @@ void trainRegressionModel();
 
 void trainClassificationModel();
 
+void trainDTWModel();
+
 void initAndCreateWindow();
 
 void initRectangle(int height, int width);
@@ -79,6 +89,10 @@ void initRectangle(int height, int width);
 void drawTextOnScreen(std::string textToDisplay, int x, int y);
 
 void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs);
+
+void collectExamplesSerie(std::vector<double> inputs, std::vector<double> outputs);
+
+void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush);
 
 void handleTextInput(std::string inputText, int x, int y, double* desiredOutput);
 
@@ -151,12 +165,23 @@ void addTrainingExamples() {
 
 void debugTrainingData()
 {
-	std::cout << "Training data: \n";
+	std::cout << "Training data regression & classification: \n";
 	for (int i = 0; i < examples.size(); i++)
 	{
-		std::cout << examples[i].input[0] << " " << examples[i].output[0] << "\n";
+		std::cout << examples[i].input[0] << " | " << examples[i].output[0] << "\n";
 
 	}
+	std::cout << "==================\n";
+	std::cout << "Training data DTW: \n";
+	for (int i = 0; i < examplesSeriesDTW.size(); i++)
+	{
+		std::cout << "Serie no " << i+1 << "\n";
+		for (int j = 0; j < examplesSeriesDTW[i].size(); j++)
+		{
+			std::cout << examplesSeriesDTW[i][j].input[0] << ", " << examplesSeriesDTW[i][j].input[1] << " | " << examplesSeriesDTW[i][j].output[0] << "\n";
+		}		
+	}
+	std::cout << "==================\n";
 
 }
 
@@ -210,6 +235,23 @@ void trainClassificationModel()
 
 }
 
+void trainDTWModel()
+{
+	std::cout << "Now training a DTW... \n";
+
+	bool isTrained = modelDTW.trainTrainingSet(examplesSeriesDTW);
+	//bool isTrained = false;
+
+	if (isTrained)
+	{
+		std::cout << "Model DTW trained successfully! \n";
+	}
+	else
+	{
+		std::cout << "Error when training model DTW :( \n";
+	}
+
+}
 
 void initAndCreateWindow()
 {
@@ -274,7 +316,25 @@ void collectTrainingExamples(std::vector<double> inputs, std::vector<double> out
 	auxExample.input = inputs;
 	auxExample.output = outputs;
 	examples.push_back(auxExample);
+}
 
+void collectExamplesSerie(std::vector<double> inputs, std::vector<double> outputs)
+{
+	// Assign inputs to training set
+	auxExample.input = inputs;
+	auxExample.output = outputs;
+	auxSerieDTW.push_back(auxExample);
+}
+
+void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush)
+{
+	if (serieToPush.size() > 0)
+	{
+		// Add serie to seriesVector
+		examplesSeriesDTW.push_back(serieToPush);
+		// Empty serie
+		serieToPush.clear();
+	}
 }
 
 void handleTextInput(std::string inputText, int x, int y, double* numberToWrite)
@@ -333,53 +393,67 @@ void inputEventsLoop()
 			switch (eventSDL.key.keysym.sym)
 			{
 				// esc key closes the app
-			case SDLK_ESCAPE:
-				exitCondition = true;
-				break;
+				case SDLK_ESCAPE:
+					exitCondition = true;
+					break;
 				// Space will trigger collecting examples
-			case SDLK_SPACE:
-				canCollectExamples = !canCollectExamples;
-				std::cout << "Collecting Examples: " << canCollectExamples << std::endl;
-				if (!canCollectExamples)
-				{
-					debugTrainingData();
-				}
-				break;
+				case SDLK_SPACE:
+					canCollectExamples = !canCollectExamples;
+					std::cout << "Collecting Examples: " << canCollectExamples << std::endl;
+					if (!canCollectExamples)
+					{
+						pushSerieIntoSeriesVector(auxSerieDTW);
+						debugTrainingData();
+					}				
+					break;
 				// Backspace will delete input text
-			case SDLK_BACKSPACE:
-				if (inputText.length() > 0)
-				{
-					//lop off character
-					inputText.pop_back();
-				}
-				break;
+				case SDLK_BACKSPACE:
+					if (inputText.length() > 0)
+					{
+						//lop off character
+						inputText.pop_back();
+					}
+					break;
 				// ctrl + c will content from input text to clipboard
-			case SDLK_c:
-				if (SDL_GetModState() & KMOD_CTRL)
-				{
-					SDL_SetClipboardText(inputText.c_str());
-				}
-				break;
+				case SDLK_c:
+					if (SDL_GetModState() & KMOD_CTRL)
+					{
+						SDL_SetClipboardText(inputText.c_str());
+					}
+					break;
 				// ctrl + v will copy text from clipboard to input text
-			case SDLK_v:
-				if (SDL_GetModState() & KMOD_CTRL)
-				{
-					inputText = SDL_GetClipboardText();
-				}
-				break;
-			case SDLK_t:
-				// delete the last introduced character (it is probably a t)
-				if (inputText.length() > 0)
-				{
-					//lop off character
-					inputText.pop_back();
-				}
-				// train model
-				trainRegressionModel();
-				trainClassificationModel();
-				break;
-			default:
-				break;
+				case SDLK_v:
+					if (SDL_GetModState() & KMOD_CTRL)
+					{
+						inputText = SDL_GetClipboardText();
+					}
+					break;
+				case SDLK_t:
+					// delete the last introduced character (it is probably a t)
+					if (inputText.length() > 0)
+					{
+						//lop off character
+						inputText.pop_back();
+					}
+					// train model
+					trainRegressionModel();
+					trainClassificationModel();
+					trainDTWModel();
+					break;
+				default:
+					break;
+			}
+			break;
+			// KEY UP
+		case SDL_KEYUP:
+			switch (eventSDL.key.keysym.sym)
+			{
+				// Space will trigger collecting examples
+				case SDLK_SPACE:
+					//pushSerieIntoSeriesVector(auxSerieDTW);
+					break;
+				default:
+					break;
 			}
 			break;
 			/* SDL_QUIT event (window close) */
@@ -429,7 +503,7 @@ void mainUpdateLoop()
 		std::vector<double> inputVec = { double(newNote) };
 		double regressionOutput = modelRegression.run(inputVec)[0];
 		double classificationOuput = modelClassification.run(inputVec)[0];
-
+		//int dtwOutput = modelDTW.runTrainingSet(examplesSeriesDTW);
 		//std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
 
 		// Draw regression output label on screen
@@ -453,7 +527,10 @@ void mainUpdateLoop()
 		// Collect examples if requested
 		if (canCollectExamples)
 		{
+			// Collect examples for classification and regression
 			collectTrainingExamples({ mousePosX * 1.0 }, { desiredOutputValue });
+			// Collect examples for dtw
+			collectExamplesSerie({ mousePosX * 1.0, mousePosY * 1.0 }, { desiredOutputValue });
 		}
 
 		//Disable text input
