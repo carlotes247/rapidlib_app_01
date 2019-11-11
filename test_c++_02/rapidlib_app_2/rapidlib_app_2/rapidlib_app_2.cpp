@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include "regression.h"
+#include "classification.h"
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
 #include "SDL_ttf.h"
@@ -17,6 +18,7 @@ trainingExample auxExample;
 regression modelRegression;
 
 // Creating a classification instance
+classification modelClassification;
 
 // Defining inputs and outputs
 std::vector<double> input = { 48 };
@@ -29,6 +31,9 @@ int mousePosY;
 // Window's app size
 int windowXSize = 640;
 int windowYSize = 480;
+
+// The exit condition for the update loop
+bool exitCondition;
 
 // Rectangle to paint
 SDL_Rect rect; // the rectangle
@@ -65,6 +70,8 @@ void debugTrainingData();
 
 void trainRegressionModel();
 
+void trainClassificationModel();
+
 void initAndCreateWindow();
 
 void initRectangle(int height, int width);
@@ -74,6 +81,8 @@ void drawTextOnScreen(std::string textToDisplay, int x, int y);
 void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs);
 
 void handleTextInput(std::string inputText, int x, int y, double* desiredOutput);
+
+void inputEventsLoop();
 
 void mainUpdateLoop();
 
@@ -89,6 +98,7 @@ int main()
 
 	// Train model
 	trainRegressionModel();
+	trainClassificationModel();
 
 	// Creates window for graphics
 	initAndCreateWindow();
@@ -159,14 +169,47 @@ void trainRegressionModel()
 
 	if (isTrained)
 	{
-		std::cout << "Model trained successfully! \n";
+		std::cout << "Model regression trained successfully! \n";
 	}
 	else
 	{
-		std::cout << "Error when training model :( \n";
+		std::cout << "Error when training model regression :( \n";
 	}
 
 }
+
+void trainClassificationModel()
+{
+	std::cout << "Now training a classification... \n";
+
+	//bool isTrained = modelRegression.train(examples);
+	bool isTrained = modelClassification.train(examples);
+	//bool isTrained = false;
+
+	std::vector<int> internalModels = modelClassification.getK();
+
+	std::cout << "Classification k is: " << internalModels[0] << "\n";
+
+	
+
+	// modelClassification.setK(0, 5); // SET K HAS A BUG!!
+
+	//internalModels = modelClassification.getK();
+
+	//std::cout << "Classification k is: " << internalModels[0] << "\n";
+
+
+	if (isTrained)
+	{
+		std::cout << "Model classification trained successfully! \n";
+	}
+	else
+	{
+		std::cout << "Error when training model classification :( \n";
+	}
+
+}
+
 
 void initAndCreateWindow()
 {
@@ -267,9 +310,97 @@ void handleTextInput(std::string inputText, int x, int y, double* numberToWrite)
 	//gInputTextTexture.loadFromRenderedText(inputText.c_str(), textColor);
 }
 
+void inputEventsLoop()
+{
+	while (SDL_PollEvent(&eventSDL) != 0)
+	{
+		switch (eventSDL.type) {
+			/* Keyboard event */
+			// Special text input event
+		case SDL_TEXTINPUT:
+			//Not copy or pasting, nor space char, nor t key (for training)
+			if (!(SDL_GetModState() & KMOD_CTRL
+				&& (eventSDL.text.text[0] == 'c' || eventSDL.text.text[0] == 'C' || eventSDL.text.text[0] == 'v' || eventSDL.text.text[0] == 'V'))
+				&& eventSDL.text.text[0] != ' '
+				)
+			{
+				//Append character
+				inputText += eventSDL.text.text;
+			}
+			break;
+			// KEY DOWN
+		case SDL_KEYDOWN:
+			switch (eventSDL.key.keysym.sym)
+			{
+				// esc key closes the app
+			case SDLK_ESCAPE:
+				exitCondition = true;
+				break;
+				// Space will trigger collecting examples
+			case SDLK_SPACE:
+				canCollectExamples = !canCollectExamples;
+				std::cout << "Collecting Examples: " << canCollectExamples << std::endl;
+				if (!canCollectExamples)
+				{
+					debugTrainingData();
+				}
+				break;
+				// Backspace will delete input text
+			case SDLK_BACKSPACE:
+				if (inputText.length() > 0)
+				{
+					//lop off character
+					inputText.pop_back();
+				}
+				break;
+				// ctrl + c will content from input text to clipboard
+			case SDLK_c:
+				if (SDL_GetModState() & KMOD_CTRL)
+				{
+					SDL_SetClipboardText(inputText.c_str());
+				}
+				break;
+				// ctrl + v will copy text from clipboard to input text
+			case SDLK_v:
+				if (SDL_GetModState() & KMOD_CTRL)
+				{
+					inputText = SDL_GetClipboardText();
+				}
+				break;
+			case SDLK_t:
+				// delete the last introduced character (it is probably a t)
+				if (inputText.length() > 0)
+				{
+					//lop off character
+					inputText.pop_back();
+				}
+				// train model
+				trainRegressionModel();
+				trainClassificationModel();
+				break;
+			default:
+				break;
+			}
+			break;
+			/* SDL_QUIT event (window close) */
+		case SDL_QUIT:
+			//exitCondition = true;
+			break;
+
+		default:
+			break;
+		}
+
+		// Get mouse event
+		SDL_GetMouseState(&mousePosX, &mousePosY);
+
+	}
+
+}
+
 void mainUpdateLoop()
 {
-	bool exitCondition = false;
+	exitCondition = false;
 	canCollectExamples = false;
 	while (!exitCondition)
 	{		
@@ -277,88 +408,7 @@ void mainUpdateLoop()
 		SDL_StartTextInput();
 
 		// Input event pooling
-		while (SDL_PollEvent(&eventSDL) != 0)
-		{
-			switch (eventSDL.type) {
-				/* Keyboard event */
-				// Special text input event
-				case SDL_TEXTINPUT:
-					//Not copy or pasting, nor space char, nor t key (for training)
-					if (!(SDL_GetModState() & KMOD_CTRL 
-						&& (eventSDL.text.text[0] == 'c' || eventSDL.text.text[0] == 'C' || eventSDL.text.text[0] == 'v' || eventSDL.text.text[0] == 'V'))
-						&& eventSDL.text.text[0] != ' '
-						)
-					{
-						//Append character
-						inputText += eventSDL.text.text;
-					}
-					break;
-				// KEY DOWN
-				case SDL_KEYDOWN:
-					switch (eventSDL.key.keysym.sym)
-					{
-						// esc key closes the app
-						case SDLK_ESCAPE:
-							exitCondition = true;
-							break;
-						// Space will trigger collecting examples
-						case SDLK_SPACE:
-							canCollectExamples = !canCollectExamples;
-							std::cout << "Collecting Examples: " << canCollectExamples << std::endl;
-							if (!canCollectExamples)
-							{
-								debugTrainingData();
-							}
-							break;
-						// Backspace will delete input text
-						case SDLK_BACKSPACE:
-							if (inputText.length() > 0)
-							{
-								//lop off character
-								inputText.pop_back();
-							}
-							break;
-						// ctrl + c will content from input text to clipboard
-						case SDLK_c:
-							if (SDL_GetModState() & KMOD_CTRL)
-							{
-								SDL_SetClipboardText(inputText.c_str());
-							}
-							break;
-						// ctrl + v will copy text from clipboard to input text
-						case SDLK_v:
-							if (SDL_GetModState() & KMOD_CTRL)
-							{
-								inputText = SDL_GetClipboardText();
-							} 
-							break;			
-						case SDLK_t:
-							// delete the last introduced character (it is probably a t)
-							if (inputText.length() > 0)
-							{
-								//lop off character
-								inputText.pop_back();
-							}
-							// train model
-							trainRegressionModel();
-							break;
-						default:
-							break;
-					}
-					break;
-				/* SDL_QUIT event (window close) */
-				case SDL_QUIT:
-					//exitCondition = true;
-					break;
-
-				default:
-					break;
-			}
-
-			// Get mouse event
-			SDL_GetMouseState(&mousePosX, &mousePosY);
-
-		}
+		inputEventsLoop();
 
 		// Paint background
 		SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -378,18 +428,22 @@ void mainUpdateLoop()
 		//Run the trained model on the user input
 		std::vector<double> inputVec = { double(newNote) };
 		double regressionOutput = modelRegression.run(inputVec)[0];
-
+		double classificationOuput = modelClassification.run(inputVec)[0];
 
 		//std::cout << "MIDI note " << newNote << " is " << freqHz << " Hertz" << std::endl;		
 
-		// Draw output label on screen
+		// Draw regression output label on screen
 		drawTextOnScreen("Regression Out: ", 0, 0);
-
 		// draw network output on top left side of screen
 		drawTextOnScreen(std::to_string(regressionOutput), 180, 0);
 		
+		// draw classification outs
+		drawTextOnScreen("Classification Out: ", 0, 35);
+		drawTextOnScreen(std::to_string(classificationOuput), 210, 35);
+
+
 		// Draw output label on screen
-		drawTextOnScreen("Desired Output: ", windowXSize - 250, 0);
+		drawTextOnScreen("Desired Output: ", windowXSize - 280, 0);
 
 		// handle input text box top right side of screen
 		handleTextInput(inputText, windowXSize - 100, 0, &desiredOutputValue);
