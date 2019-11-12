@@ -16,8 +16,10 @@ std::vector<trainingExample> examples;
 trainingExample auxExample;
 // Vectors for DTW
 std::vector<std::vector<trainingExample>> examplesSeriesDTW;
-// Will be used to collect one serie at a time for DTW
+// Will be used to collect one serie at a time for DTW training
 std::vector<trainingExample> auxSerieDTW; 
+// Used to collect a serie and run dtw on it
+std::vector<trainingExample> runningSerieDTW;
 
 // Creating regression instance
 regression modelRegression;
@@ -71,6 +73,9 @@ bool canCollectExamples;
 // Flag to allow the collection of one serie of examples for dtw
 bool canCollectExampleSerie;
 
+// Last detected DTW
+int lastRunDTW;
+
 #pragma endregion
 
 #pragma region Methods Declaration
@@ -94,6 +99,8 @@ void drawTextOnScreen(std::string textToDisplay, int x, int y);
 void collectTrainingExamples(std::vector<double> inputs, std::vector<double> outputs);
 
 void collectExamplesSerie(std::vector<double> inputs, std::vector<double> outputs);
+
+void collectRunningExampleSerie(std::vector<double> inputs, std::vector<double> outputs);
 
 void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush);
 
@@ -329,6 +336,16 @@ void collectExamplesSerie(std::vector<double> inputs, std::vector<double> output
 	auxSerieDTW.push_back(auxExample);
 }
 
+void collectRunningExampleSerie(std::vector<double> inputs, std::vector<double> outputs)
+{
+	// Assign inputs to training set
+	auxExample.input = inputs;
+	auxExample.output = outputs;
+	runningSerieDTW.push_back(auxExample);
+
+	std::cout << "Adding example to running dtw serie. Size of serie: " << runningSerieDTW.size() << std::endl;
+}
+
 void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush)
 {
 	if (serieToPush.size() > 0)
@@ -524,6 +541,9 @@ void mainUpdateLoop()
 		drawTextOnScreen("Classification Out: ", 0, 35);
 		drawTextOnScreen(std::to_string(classificationOuput), 210, 35);
 
+		// draw dtw outs
+		drawTextOnScreen("DTW Out: ", 0, 70);
+		drawTextOnScreen(std::to_string(lastRunDTW), 130, 70);
 
 		// Draw output label on screen
 		drawTextOnScreen("Desired Output: ", windowXSize - 280, 0);
@@ -545,12 +565,21 @@ void mainUpdateLoop()
 		// Collect an example serie for running dtw
 		if (canCollectExampleSerie)
 		{
-			std::cout << "Detecting mouse down \n";
+			//std::cout << "Detecting mouse down \n";
+			collectRunningExampleSerie({ mousePosX * 1.0, mousePosY * 1.0 }, { desiredOutputValue });
 		}
 		else
 		{
-			std::cout << "Detecting mouse up \n";
-
+			//std::cout << "Detecting mouse up \n";
+			// If there is a serie to run...
+			if (runningSerieDTW.size() > 0)
+			{
+				// run dtw on it
+				lastRunDTW = modelDTW.runTrainingSet(runningSerieDTW);
+				std::cout << "DTW Output is: " << lastRunDTW << "\n";
+				// Clear serie
+				runningSerieDTW.clear();
+			}
 		}
 
 		//Disable text input
