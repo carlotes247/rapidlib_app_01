@@ -68,6 +68,9 @@ double desiredOutputValue;
 // Flag to allow the collection of examples in the main loop
 bool canCollectExamples;
 
+// Flag to allow the collection of one serie of examples for dtw
+bool canCollectExampleSerie;
+
 #pragma endregion
 
 #pragma region Methods Declaration
@@ -460,7 +463,12 @@ void inputEventsLoop()
 		case SDL_QUIT:
 			//exitCondition = true;
 			break;
-
+		case SDL_MOUSEBUTTONDOWN:
+			canCollectExampleSerie = true;
+			break;
+		case SDL_MOUSEBUTTONUP:
+			canCollectExampleSerie = false;
+			break;
 		default:
 			break;
 		}
@@ -476,6 +484,7 @@ void mainUpdateLoop()
 {
 	exitCondition = false;
 	canCollectExamples = false;
+	canCollectExampleSerie = false;
 	while (!exitCondition)
 	{		
 		// Enable text input
@@ -524,13 +533,24 @@ void mainUpdateLoop()
 
 		//std::cout << desiredOutputValue; 
 
-		// Collect examples if requested
+		// Collect examples (for training) if requested
 		if (canCollectExamples)
 		{
 			// Collect examples for classification and regression
 			collectTrainingExamples({ mousePosX * 1.0 }, { desiredOutputValue });
 			// Collect examples for dtw
 			collectExamplesSerie({ mousePosX * 1.0, mousePosY * 1.0 }, { desiredOutputValue });
+		}
+
+		// Collect an example serie for running dtw
+		if (canCollectExampleSerie)
+		{
+			std::cout << "Detecting mouse down \n";
+		}
+		else
+		{
+			std::cout << "Detecting mouse up \n";
+
 		}
 
 		//Disable text input
