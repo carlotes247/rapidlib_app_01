@@ -2,12 +2,16 @@
 //
 
 #include <iostream>
+// Rapidlib includes
 #include "regression.h"
 #include "classification.h"
 #include "seriesClassification.h"
+// To handle input and paint a window
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
+// To draw fonts on the window
 #include "SDL_ttf.h"
+
 
 #pragma region Vars
 /* ML VARS */
@@ -15,11 +19,15 @@
 std::vector<trainingExample> examples;
 trainingExample auxExample;
 // Vectors for DTW
-std::vector<std::vector<trainingExample>> examplesSeriesDTW;
+//std::vector<std::vector<trainingExample>> examplesSeriesDTW; // deprecated this one since we have a specific class now
+std::vector<trainingSeries> examplesSeriesDTW;
+
 // Will be used to collect one serie at a time for DTW training
-std::vector<trainingExample> auxSerieDTW; 
+//std::vector<trainingExample> auxSerieDTW; // deprecated this one since we have a specific class now
+trainingSeries auxSerieDTW; 
 // Used to collect a serie and run dtw on it
-std::vector<trainingExample> runningSerieDTW;
+//std::vector<trainingExample> runningSerieDTW; // deprecated this one since we have a specific class now
+trainingSeries runningSerieDTW; 
 
 // Creating regression instance
 regression modelRegression;
@@ -74,7 +82,7 @@ bool canCollectExamples;
 bool canCollectExampleSerie;
 
 // Last detected DTW
-int lastRunDTW;
+std::string lastRunDTW;
 
 #pragma endregion
 
@@ -100,9 +108,15 @@ void collectTrainingExamples(std::vector<double> inputs, std::vector<double> out
 
 void collectExamplesSerie(std::vector<double> inputs, std::vector<double> outputs);
 
+void collectExamplesSerieLabel(std::vector<double> inputs, std::string output);
+
 void collectRunningExampleSerie(std::vector<double> inputs, std::vector<double> outputs);
 
+void collectRunningExampleSerieLabel(std::vector<double> inputs, std::string output);
+
 void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush);
+
+void pushSerieIntoSeriesVector(trainingSeries &serieToPush);
 
 void handleTextInput(std::string inputText, int x, int y, double* desiredOutput);
 
@@ -185,10 +199,10 @@ void debugTrainingData()
 	std::cout << "Training data DTW: \n";
 	for (int i = 0; i < examplesSeriesDTW.size(); i++)
 	{
-		std::cout << "Serie no " << i+1 << "\n";
-		for (int j = 0; j < examplesSeriesDTW[i].size(); j++)
+		std::cout << "Serie no " << i+1 << ". Output: "<< examplesSeriesDTW[i].label << "\n";
+		for (int j = 0; j < examplesSeriesDTW[i].input.size(); j++)
 		{
-			std::cout << examplesSeriesDTW[i][j].input[0] << ", " << examplesSeriesDTW[i][j].input[1] << " | " << examplesSeriesDTW[i][j].output[0] << "\n";
+			std::cout << examplesSeriesDTW[i].input[j][0] << ", " << examplesSeriesDTW[i].input[j][1] << " | " << examplesSeriesDTW[i].label << "\n";
 		}		
 	}
 	std::cout << "==================\n";
@@ -249,7 +263,8 @@ void trainDTWModel()
 {
 	std::cout << "Now training a DTW... \n";
 
-	bool isTrained = modelDTW.trainTrainingSet(examplesSeriesDTW);
+	//bool isTrained = modelDTW.trainTrainingSet(examplesSeriesDTW);
+	bool isTrained = modelDTW.train(examplesSeriesDTW);
 	//bool isTrained = false;
 
 	if (isTrained)
@@ -331,19 +346,41 @@ void collectTrainingExamples(std::vector<double> inputs, std::vector<double> out
 void collectExamplesSerie(std::vector<double> inputs, std::vector<double> outputs)
 {
 	// Assign inputs to training set
-	auxExample.input = inputs;
-	auxExample.output = outputs;
-	auxSerieDTW.push_back(auxExample);
+	auxSerieDTW.input.push_back(inputs);
+	// Convert output to string
+	auxSerieDTW.label = std::to_string(outputs[0]);
+
 }
+
+void collectExamplesSerieLabel(std::vector<double> inputs, std::string output)
+{
+	// Assign inputs to training set
+	auxSerieDTW.input.push_back(inputs);
+	// Convert output to string
+	auxSerieDTW.label = output;
+
+}
+
+
 
 void collectRunningExampleSerie(std::vector<double> inputs, std::vector<double> outputs)
 {
 	// Assign inputs to training set
-	auxExample.input = inputs;
-	auxExample.output = outputs;
-	runningSerieDTW.push_back(auxExample);
+	runningSerieDTW.input.push_back(inputs);
+	runningSerieDTW.label = std::to_string(outputs[0]);
 
-	std::cout << "Adding example to running dtw serie. Size of serie: " << runningSerieDTW.size() << std::endl;
+	std::cout << "Adding example to running dtw serie. Size of serie: " << runningSerieDTW.input.size() << std::endl;
+}
+
+void collectRunningExampleSerieLabel(std::vector<double> inputs, std::string output)
+{
+	// Assign inputs to training set
+	runningSerieDTW.input.push_back(inputs);
+	runningSerieDTW.label = output;
+
+	std::cout << "Adding example to running dtw serie. Size of serie: " << runningSerieDTW.input.size() << std::endl;
+
+
 }
 
 void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush)
@@ -351,10 +388,33 @@ void pushSerieIntoSeriesVector(std::vector<trainingExample> &serieToPush)
 	if (serieToPush.size() > 0)
 	{
 		// Add serie to seriesVector
-		examplesSeriesDTW.push_back(serieToPush);
+		// Convert a list of training examples into the new trainingSerie class for DTW
+		trainingSeries auxSerie;
+		for (int i = 0; i < serieToPush.size(); i++)
+		{
+			for (int j = 0; j < serieToPush[i].input.size(); j++)
+			{
+				auxSerie.input[i][j] = serieToPush[i].input[j];
+			}
+		}
+		auxSerie.label = serieToPush[0].output[0];
+		examplesSeriesDTW.push_back(auxSerie);
 		// Empty serie
 		serieToPush.clear();
 	}
+}
+
+void pushSerieIntoSeriesVector(trainingSeries & serieToPush)
+{
+	if (serieToPush.input.size() > 0)
+	{
+		// Add serie to seriesVector
+		examplesSeriesDTW.push_back(serieToPush);
+		// Empty serie
+		serieToPush.input.clear();
+		serieToPush.label.clear();
+	}
+
 }
 
 void handleTextInput(std::string inputText, int x, int y, double* numberToWrite)
@@ -543,7 +603,7 @@ void mainUpdateLoop()
 
 		// draw dtw outs
 		drawTextOnScreen("DTW Out: ", 0, 70);
-		drawTextOnScreen(std::to_string(lastRunDTW), 130, 70);
+		drawTextOnScreen(lastRunDTW, 130, 70);
 
 		// Draw output label on screen
 		drawTextOnScreen("Desired Output: ", windowXSize - 280, 0);
@@ -572,13 +632,16 @@ void mainUpdateLoop()
 		{
 			//std::cout << "Detecting mouse up \n";
 			// If there is a serie to run...
-			if (runningSerieDTW.size() > 0)
+			if (runningSerieDTW.input.size() > 0)
 			{
 				// run dtw on it
-				lastRunDTW = modelDTW.runTrainingSet(runningSerieDTW);
+				//lastRunDTW = modelDTW.runTrainingSet(runningSerieDTW); // deprecated since new version of rapidlib uses this
+				lastRunDTW = modelDTW.run(runningSerieDTW.input);
+				//modelDTW.runContinuous(runningSerieDTW); // not sure what the new runContinous does?
 				std::cout << "DTW Output is: " << lastRunDTW << "\n";
 				// Clear serie
-				runningSerieDTW.clear();
+				runningSerieDTW.input.clear();
+				runningSerieDTW.label.clear();
 			}
 		}
 
